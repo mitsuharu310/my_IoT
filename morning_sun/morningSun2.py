@@ -1,9 +1,11 @@
-# morningSun.py
-# Apr14, 15, 2019
+# morningSun2.py
+# Apr29, 2019
+
+# no capture_continuous loop, one shot version
 
 from time import sleep
 from picamera import PiCamera
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 import sys
 
@@ -30,36 +32,32 @@ def sendToSlack(file_to_send, ini_comment, token, channel):
     requests.post(url="https://slack.com/api/files.upload",
                   params=params,
                   files=b_file)
-    #print(params)
+
     print(file_to_send, 'sent out!')
-    sleep(1)
 
 
-def myMain():
+def myMain(TOKEN, CHANNEL_ID, counter):
 
-    camera = PiCamera()
-    camera.resolution = (1024, 768)
-    camera.shutter_speed = 1  # ms
-    camera.iso = 10
-    sleep(2)
+    filename = 'sun_' + counter.zfill(2) + '_'
+    filename += datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.jpg'
 
-    capture_count = 6
-    sleep_sec = 1800
-    for i, filename in enumerate(camera.capture_continuous('sun_{counter:02d}-{timestamp:%Y-%m-%d-%H-%M_%S}.jpg')):
-        print('Captured:', filename)
-        comment = 'capture '
-        comment += str(i+1).zfill(2) + ', ' + filename
+    with PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.shutter_speed = 1  # micro sec.
+        camera.iso = 10
+        camera.start_preview()
+        sleep(2)
+        camera.capture(filename)
 
-        sleep(10)  # give a while to save file before executing senToSlack
+    print('Captured:', filename)
+    comment = 'capture ' + counter.zfill(2) + ', ' + filename
 
-        sendToSlack(filename, comment, TOKEN, CHANNEL_ID)
+    sendToSlack(filename, comment, TOKEN, CHANNEL_ID)
 
-        if i == capture_count - 1:
-            break
-        sleep(sleep_sec)
     print('capture done!')
 
 
 if __name__ == '__main__':
     TOKEN, CHANNEL_ID = getCredentials(sys.argv[1], sys.argv[2])
-    myMain()
+    counter = sys.argv[3]
+    myMain(TOKEN, CHANNEL_ID, counter)
